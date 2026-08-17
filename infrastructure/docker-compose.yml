@@ -37,7 +37,7 @@ services:
   # ── Backend (.NET 10 API) ──────────────────────────────────
   backend:
     build:
-      context: ./backend
+      context: ../backend
       dockerfile: Dockerfile
     container_name: oci-lab-backend
     restart: unless-stopped
@@ -60,7 +60,7 @@ services:
   # ── Frontend (Angular + nginx) ─────────────────────────────
   frontend:
     build:
-      context: ./frontend
+      context: ../frontend
       dockerfile: Dockerfile
     container_name: oci-lab-frontend
     restart: unless-stopped

@@ -8,6 +8,18 @@ export const routes: Routes = [
         .then(m => m.ArchitectureListComponent)
   },
   {
+    path: 'designer',
+    loadComponent: () =>
+      import('./features/canvas/canvas-designer.component')
+        .then(m => m.CanvasDesignerComponent)
+  },
+  {
+    path: 'designer/:id',
+    loadComponent: () =>
+      import('./features/canvas/canvas-designer.component')
+        .then(m => m.CanvasDesignerComponent)
+  },
+  {
     path: '**',
     redirectTo: ''
   }
