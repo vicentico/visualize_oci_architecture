@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/OciArchitectureLab.Api/OciArchitectureLab.Api.csproj" />
+    <Project Path="src/OciArchitectureLab.Application/OciArchitectureLab.Application.csproj" />
+    <Project Path="src/OciArchitectureLab.Domain/OciArchitectureLab.Domain.csproj" />
+    <Project Path="src/OciArchitectureLab.Infrastructure/OciArchitectureLab.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/OciArchitectureLab.Integration.Tests/OciArchitectureLab.Integration.Tests.csproj" />
+    <Project Path="tests/OciArchitectureLab.Unit.Tests/OciArchitectureLab.Unit.Tests.csproj" />
+  </Folder>
+</Solution>
