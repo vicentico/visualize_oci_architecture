@@ -171,6 +171,74 @@ import { OCI_CATALOG } from '../../../core/models/catalog.models';
                 </mat-select>
               </mat-form-field>
             }
+
+            @if (node.type === 'OKECluster') {
+              <mat-form-field appearance="outline" class="full-width" subscriptSizing="dynamic">
+                <mat-label>Kubernetes Version</mat-label>
+                <input matInput [(ngModel)]="node.properties['kubernetesVersion']" (ngModelChange)="onPropChange(node)" />
+              </mat-form-field>
+              <div class="two-col">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Node Count</mat-label>
+                  <input matInput type="number" min="1" max="100" [(ngModel)]="node.properties['nodeCount']" (ngModelChange)="onPropChange(node)" />
+                </mat-form-field>
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Node Shape</mat-label>
+                  <input matInput [(ngModel)]="node.properties['nodeShape']" (ngModelChange)="onPropChange(node)" />
+                </mat-form-field>
+              </div>
+            }
+
+            @if (node.type === 'Functions') {
+              <div class="two-col">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Memory (MBs)</mat-label>
+                  <input matInput type="number" min="128" max="2048" [(ngModel)]="node.properties['memoryInMBs']" (ngModelChange)="onPropChange(node)" />
+                </mat-form-field>
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Timeout (s)</mat-label>
+                  <input matInput type="number" min="1" max="300" [(ngModel)]="node.properties['timeoutInSeconds']" (ngModelChange)="onPropChange(node)" />
+                </mat-form-field>
+              </div>
+            }
+
+            @if (node.type === 'ApiGateway') {
+              <mat-form-field appearance="outline" class="full-width" subscriptSizing="dynamic">
+                <mat-label>Endpoint Type</mat-label>
+                <mat-select [(ngModel)]="node.properties['endpointType']" (selectionChange)="onPropChange(node)">
+                  <mat-option value="PUBLIC">Public</mat-option>
+                  <mat-option value="PRIVATE">Private</mat-option>
+                </mat-select>
+              </mat-form-field>
+              <div class="toggle-row">
+                <span>Enable Rate Limiting</span>
+                <mat-slide-toggle [(ngModel)]="node.properties['rateLimiting']" (change)="onPropChange(node)"></mat-slide-toggle>
+              </div>
+            }
+
+            @if (node.type === 'Queue') {
+              <div class="two-col">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Visibility Timeout (s)</mat-label>
+                  <input matInput type="number" min="1" max="43200" [(ngModel)]="node.properties['visibilityTimeout']" (ngModelChange)="onPropChange(node)" />
+                </mat-form-field>
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Retention (Days)</mat-label>
+                  <input matInput type="number" min="1" max="7" [(ngModel)]="node.properties['retentionInDays']" (ngModelChange)="onPropChange(node)" />
+                </mat-form-field>
+              </div>
+            }
+
+            @if (node.type === 'Vault') {
+              <mat-form-field appearance="outline" class="full-width" subscriptSizing="dynamic">
+                <mat-label>Vault Type</mat-label>
+                <mat-select [(ngModel)]="node.properties['vaultType']" (selectionChange)="onPropChange(node)">
+                  <mat-option value="VIRTUAL_PRIVATE">Virtual Private</mat-option>
+                  <mat-option value="DEFAULT">Default</mat-option>
+                </mat-select>
+              </mat-form-field>
+            }
+
           </div>
 
           <mat-divider />

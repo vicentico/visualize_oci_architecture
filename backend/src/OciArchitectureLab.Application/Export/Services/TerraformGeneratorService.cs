@@ -94,8 +94,34 @@ public class TerraformGeneratorService : ITerraformGeneratorService
                     sb.AppendLine($"}}");
                     sb.AppendLine();
                     break;
+                case "ApiGateway":
+                    sb.AppendLine($"resource \"oci_apigateway_gateway\" \"{resName}\" {{");
+                    sb.AppendLine($"  compartment_id = var.compartment_id");
+                    sb.AppendLine($"  endpoint_type  = \"PUBLIC\"");
+                    sb.AppendLine($"  subnet_id      = oci_core_subnet.main_subnet.id");
+                    sb.AppendLine($"  display_name   = \"{resource.Name}\"");
+                    sb.AppendLine($"}}");
+                    sb.AppendLine();
+                    break;
+                case "OKECluster":
+                    sb.AppendLine($"resource \"oci_containerengine_cluster\" \"{resName}\" {{");
+                    sb.AppendLine($"  compartment_id     = var.compartment_id");
+                    sb.AppendLine($"  kubernetes_version = \"v1.31.1\"");
+                    sb.AppendLine($"  name               = \"{resource.Name}\"");
+                    sb.AppendLine($"  vcn_id             = oci_core_vcn.main_vcn.id");
+                    sb.AppendLine($"}}");
+                    sb.AppendLine();
+                    break;
+                case "Functions":
+                    sb.AppendLine($"resource \"oci_functions_application\" \"{resName}\" {{");
+                    sb.AppendLine($"  compartment_id = var.compartment_id");
+                    sb.AppendLine($"  display_name   = \"{resource.Name}\"");
+                    sb.AppendLine($"  subnet_ids     = [oci_core_subnet.main_subnet.id]");
+                    sb.AppendLine($"}}");
+                    sb.AppendLine();
+                    break;
                 default:
-                    // Fallback as a comment for unknown resources
+                    // Fallback as a comment for unknown or highly advanced resources
                     sb.AppendLine($"// TODO: Add terraform definition for {resType} ({resource.Name})");
                     sb.AppendLine();
                     break;

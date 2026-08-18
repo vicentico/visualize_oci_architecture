@@ -241,5 +241,99 @@ export const OCI_CATALOG: OciCatalogItem[] = [
     description: 'Fully managed Oracle Database, MySQL HeatWave, or PostgreSQL service.',
     educationalWhy: 'Stores persistent application data. MUST ALWAYS be placed in private subnets with strict NSG rules.',
     defaultProperties: { workload: 'Transaction Processing (OLTP)', cpuCount: 2, storageInTB: 1 }
+  },
+
+  // Advanced / Application Integration
+  {
+    type: 'ApiGateway',
+    name: 'API Gateway',
+    category: 'Networking',
+    icon: 'api',
+    color: '#0d9488',
+    description: 'A highly available, fully managed API gateway to expose HTTP APIs securely.',
+    educationalWhy: 'Centralizes authentication, rate limiting, and routing for serverless functions and containerized microservices.',
+    defaultProperties: { endpointType: 'PUBLIC', rateLimiting: true }
+  },
+  {
+    type: 'OKECluster',
+    name: 'OKE Cluster (Kubernetes)',
+    category: 'Compute',
+    icon: 'view_in_ar',
+    color: '#4f46e5',
+    description: 'Oracle Cloud Infrastructure Container Engine for Kubernetes.',
+    educationalWhy: 'Orchestrates containerized applications. Best practice is to deploy worker nodes in private subnets.',
+    defaultProperties: { kubernetesVersion: 'v1.31.1', nodeCount: 3, nodeShape: 'VM.Standard.E5.Flex' },
+    defaultWidth: 200,
+    defaultHeight: 120
+  },
+  {
+    type: 'Functions',
+    name: 'OCI Functions',
+    category: 'Compute',
+    icon: 'functions',
+    color: '#d97706',
+    description: 'Serverless compute platform based on Fn Project.',
+    educationalWhy: 'Executes event-driven logic without managing servers. Charges only for execution time.',
+    defaultProperties: { memoryInMBs: 1024, timeoutInSeconds: 120 }
+  },
+  {
+    type: 'Queue',
+    name: 'OCI Queue',
+    category: 'Application',
+    icon: 'queue',
+    color: '#b45309',
+    description: 'Highly available, fully managed serverless queuing service.',
+    educationalWhy: 'Decouples microservices by buffering asynchronous messages.',
+    defaultProperties: { visibilityTimeout: 30, retentionInDays: 1 }
+  },
+  {
+    type: 'Streaming',
+    name: 'OCI Streaming',
+    category: 'Application',
+    icon: 'waves',
+    color: '#b45309',
+    description: 'Apache Kafka-compatible real-time event streaming platform.',
+    educationalWhy: 'Ideal for ingestion of high-volume logs, telemetry data, and real-time analytics.',
+    defaultProperties: { partitions: 1, retentionInHours: 24 }
+  },
+  {
+    type: 'Events',
+    name: 'OCI Events Service',
+    category: 'Application',
+    icon: 'bolt',
+    color: '#ca8a04',
+    description: 'Reacts to state changes in OCI resources and triggers actions.',
+    educationalWhy: 'Automates cloud operations. E.g., trigger a Function when an Object is uploaded to a bucket.',
+    defaultProperties: { ruleCondition: 'Object Create' }
+  },
+  {
+    type: 'Vault',
+    name: 'OCI Vault',
+    category: 'Core', // Can also be Security
+    icon: 'lock',
+    color: '#1e293b',
+    description: 'Managed service for storing and managing encryption keys and secrets.',
+    educationalWhy: 'Crucial for centralizing and securing API keys, passwords, and custom KMS encryption keys.',
+    defaultProperties: { vaultType: 'VIRTUAL_PRIVATE' }
+  },
+  {
+    type: 'Logging',
+    name: 'OCI Logging',
+    category: 'Core',
+    icon: 'receipt_long',
+    color: '#475569',
+    description: 'Highly scalable, fully managed single pane of glass for all logs in a tenancy.',
+    educationalWhy: 'Consolidates audit, service, and custom application logs for security analysis and troubleshooting.',
+    defaultProperties: { logType: 'SERVICE' }
+  },
+  {
+    type: 'Monitoring',
+    name: 'OCI Monitoring',
+    category: 'Core',
+    icon: 'insights',
+    color: '#334155',
+    description: 'Provides metrics and alarms for OCI resources.',
+    educationalWhy: 'Triggers scaling actions or notifications when infrastructure thresholds (like CPU) are exceeded.',
+    defaultProperties: { alarmSeverity: 'CRITICAL', interval: '1m' }
   }
 ];
