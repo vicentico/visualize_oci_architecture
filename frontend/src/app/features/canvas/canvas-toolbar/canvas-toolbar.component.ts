@@ -6,33 +6,35 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { CanvasStateService } from '../services/canvas-state.service';
 import { CanvasHistoryService } from '../services/canvas-history.service';
+
+import { ExportService } from '../../../core/services/export.service';
+import { TemplateService, ArchitectureTemplate } from '../../../core/services/template.service';
 
 @Component({
   selector: 'app-canvas-toolbar',
   standalone: true,
   imports: [
     CommonModule,
-    MatIconModule,
     MatButtonModule,
+    MatIconModule,
     MatTooltipModule,
     MatDividerModule,
     MatMenuModule,
-    MatSnackBarModule
+    MatSnackBarModule,
+    MatSlideToggleModule
   ],
   template: `
     <header class="toolbar-container">
+        <div class="v-divider"></div>
 
-      <!-- Left: Architecture Identity & Status -->
-      <div class="toolbar-group left-group">
-        <div class="arch-badge">
-          <mat-icon class="arch-icon">account_tree</mat-icon>
-          <div class="arch-info">
-            <span class="arch-name">{{ canvasState.architectureName() }}</span>
-            <span class="arch-region">{{ canvasState.architectureRegion() }}</span>
-          </div>
-        </div>
+        <!-- Validation Status Badge -->
+        <button mat-button class="validation-badge" [ngClass]="validationStatusClass()" (click)="openValidationPanel()">
+          <mat-icon>{{ validationIcon() }}</mat-icon>
+          <span>{{ validationText() }}</span>
+        </button>
       </div>
 
       <!-- Center: Undo/Redo & Viewport Controls -->
@@ -98,10 +100,12 @@ import { CanvasHistoryService } from '../services/canvas-history.service';
           <mat-icon class="arrow-down">expand_more</mat-icon>
         </button>
         <mat-menu #templateMenu="matMenu">
-          <button mat-menu-item (click)="loadStarter()">
-            <mat-icon>web</mat-icon>
-            <span>OCI Web App Baseline (MVP)</span>
-          </button>
+          @for (template of templates; track template.id) {
+            <button mat-menu-item (click)="loadTemplate(template)">
+              <mat-icon>{{ template.icon }}</mat-icon>
+              <span>{{ template.name }}</span>
+            </button>
+          }
         </mat-menu>
 
         <!-- Import / Export Menu -->
@@ -112,8 +116,16 @@ import { CanvasHistoryService } from '../services/canvas-history.service';
         </button>
         <mat-menu #fileMenu="matMenu">
           <button mat-menu-item (click)="exportJson()">
-            <mat-icon>download</mat-icon>
+            <mat-icon>data_object</mat-icon>
             <span>Export JSON</span>
+          </button>
+          <button mat-menu-item (click)="exportMarkdown()">
+            <mat-icon>description</mat-icon>
+            <span>Export Markdown</span>
+          </button>
+          <button mat-menu-item (click)="exportTerraform()">
+            <mat-icon>code</mat-icon>
+            <span>Export Terraform</span>
           </button>
           <button mat-menu-item (click)="fileInput.click()">
             <mat-icon>upload_file</mat-icon>
@@ -129,10 +141,30 @@ import { CanvasHistoryService } from '../services/canvas-history.service';
         <!-- Hidden file input for import -->
         <input #fileInput type="file" accept=".json" style="display: none" (change)="onFileSelected($event)" />
 
-        <!-- Save Button -->
-        <button mat-flat-button color="primary" class="save-btn" (click)="saveLocal()">
-          <mat-icon>save</mat-icon>
-          <span>Save</span>
+        <div class="v-divider"></div>
+
+        <mat-slide-toggle 
+          color="accent" 
+          [checked]="canvasState.learningMode()"
+          (change)="canvasState.toggleLearningMode()">
+          Learning Mode
+        </mat-slide-toggle>
+
+        <div class="v-divider"></div>
+
+        <mat-slide-toggle 
+          color="primary" 
+          [checked]="canvasState.simulationMode()"
+          (change)="canvasState.toggleSimulationMode()">
+          Simulation Mode
+        </mat-slide-toggle>
+
+        <div class="v-divider"></div>
+
+        <!-- Save to Cloud Button -->
+        <button mat-flat-button color="primary" class="save-btn" (click)="saveCloud()" [disabled]="isSaving">
+          <mat-icon>{{ isSaving ? 'sync' : 'cloud_upload' }}</mat-icon>
+          <span>{{ isSaving ? 'Saving...' : 'Save to Cloud' }}</span>
         </button>
       </div>
 
@@ -240,16 +272,75 @@ import { CanvasHistoryService } from '../services/canvas-history.service';
       align-items: center;
       gap: 4px;
     }
+
+    .validation-badge {
+      font-size: 12px;
+      font-weight: 600;
+      height: 34px;
+      border-radius: 16px;
+      padding: 0 12px;
+    }
+    .validation-badge.valid { color: #10b981; background: #d1fae5; }
+    .validation-badge.warning { color: #d97706; background: #fef3c7; }
+    .validation-badge.error { color: #ef4444; background: #fee2e2; }
+    .validation-badge.loading { color: #64748b; background: #f1f5f9; }
   `]
 })
-export class CanvasToolbarComponent {
+export class CanvasToolbarComponent implements OnInit {
   @ViewChild('fileInput') fileInputRef!: ElementRef<HTMLInputElement>;
+  isSaving = false;
+  templates: ArchitectureTemplate[] = [];
 
   constructor(
     public canvasState: CanvasStateService,
     public historyService: CanvasHistoryService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private exportService: ExportService,
+    private templateService: TemplateService
   ) {}
+
+  ngOnInit() {
+    this.templates = this.templateService.getTemplates();
+  }
+
+  validationStatusClass(): string {
+    const res = this.canvasState.validationResult();
+    if (!res) return 'loading';
+    if (res.isValid && res.messages.length === 0) return 'valid';
+    if (!res.isValid) return 'error';
+    return 'warning';
+  }
+
+  validationIcon(): string {
+    const res = this.canvasState.validationResult();
+    if (!res) return 'hourglass_empty';
+    if (res.isValid && res.messages.length === 0) return 'check_circle';
+    if (!res.isValid) return 'error';
+    return 'warning';
+  }
+
+  validationText(): string {
+    const res = this.canvasState.validationResult();
+    if (!res) return 'Validating...';
+    if (res.isValid && res.messages.length === 0) return 'Valid';
+    
+    const errors = res.messages.filter(m => m.severity === 'Error').length;
+    const warnings = res.messages.filter(m => m.severity === 'Warning').length;
+    
+    if (errors > 0) return `${errors} Error${errors > 1 ? 's' : ''}`;
+    return `${warnings} Warning${warnings > 1 ? 's' : ''}`;
+  }
+
+  openValidationPanel() {
+    const res = this.canvasState.validationResult();
+    if (!res || res.messages.length === 0) {
+      this.snackBar.open('Architecture is fully valid!', 'OK', { duration: 2000 });
+      return;
+    }
+    // For MVP, just show the first error in snackbar
+    const firstMsg = res.messages[0];
+    this.snackBar.open(`[${firstMsg.ruleId}] ${firstMsg.message}`, 'Close', { duration: 5000 });
+  }
 
   zoomPercentage(): number {
     return Math.round(this.canvasState.viewport().zoom * 100);
@@ -276,11 +367,19 @@ export class CanvasToolbarComponent {
     this.snackBar.open('Layout organized in architectural tiers', 'OK', { duration: 2000 });
   }
 
-  loadStarter() {
-    this.canvasState.loadStarterArchitecture();
-    this.canvasState.fitToScreen();
-    this.snackBar.open('Loaded baseline OCI Web Architecture', 'OK', { duration: 2500 });
+  loadTemplate(template: ArchitectureTemplate) {
+    if (this.canvasState.nodes().length > 0) {
+      if (!confirm(`Are you sure you want to load the '${template.name}' template? This will replace your current design.`)) {
+        return;
+      }
+    }
+    this.canvasState.loadTemplate(template.data);
+    this.historyService.clear();
+    this.canvasState.setArchitectureId(crypto.randomUUID());
+    this.snackBar.open(`Loaded ${template.name} template`, 'OK', { duration: 2500 });
   }
+
+
 
   clearCanvas() {
     this.canvasState.clearCanvas();
@@ -290,6 +389,19 @@ export class CanvasToolbarComponent {
   saveLocal() {
     this.canvasState.saveToLocalStorage();
     this.snackBar.open('Architecture saved locally', 'OK', { duration: 2000 });
+  }
+
+  async saveCloud() {
+    this.isSaving = true;
+    try {
+      await this.canvasState.saveToCloud();
+      this.snackBar.open('Architecture saved to MongoDB successfully!', 'OK', { duration: 3000 });
+    } catch (error) {
+      console.error('Save to cloud failed', error);
+      this.snackBar.open('Failed to save to cloud', 'Error', { duration: 3000 });
+    } finally {
+      this.isSaving = false;
+    }
   }
 
   exportJson() {
@@ -302,6 +414,32 @@ export class CanvasToolbarComponent {
     a.click();
     URL.revokeObjectURL(url);
     this.snackBar.open('Architecture JSON exported', 'OK', { duration: 2000 });
+  }
+
+  exportMarkdown() {
+    const archId = this.canvasState.architectureId();
+    this.isSaving = true;
+    this.canvasState.saveToCloud().then(() => {
+      this.isSaving = false;
+      this.exportService.exportMarkdown(archId);
+      this.snackBar.open('Exporting to Markdown...', 'OK', { duration: 2000 });
+    }).catch(err => {
+      this.isSaving = false;
+      this.snackBar.open('Failed to save to cloud before export.', 'Error', { duration: 3000 });
+    });
+  }
+
+  exportTerraform() {
+    const archId = this.canvasState.architectureId();
+    this.isSaving = true;
+    this.canvasState.saveToCloud().then(() => {
+      this.isSaving = false;
+      this.exportService.exportTerraform(archId);
+      this.snackBar.open('Exporting Terraform...', 'OK', { duration: 2000 });
+    }).catch(err => {
+      this.isSaving = false;
+      this.snackBar.open('Failed to save to cloud before export.', 'Error', { duration: 3000 });
+    });
   }
 
   onFileSelected(event: Event) {

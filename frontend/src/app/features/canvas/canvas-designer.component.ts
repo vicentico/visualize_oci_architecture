@@ -6,6 +6,7 @@ import { ComponentPaletteComponent } from '../catalog/palette/palette.component'
 import { CanvasToolbarComponent } from './canvas-toolbar/canvas-toolbar.component';
 import { CanvasViewportComponent } from './canvas-viewport/canvas-viewport.component';
 import { InspectorPanelComponent } from '../inspector/inspector-panel/inspector-panel.component';
+import { LearningPanelComponent } from '../learning/learning-panel/learning-panel.component';
 import { CanvasStateService } from './services/canvas-state.service';
 import { CanvasHistoryService } from './services/canvas-history.service';
 
@@ -19,7 +20,8 @@ import { CanvasHistoryService } from './services/canvas-history.service';
     ComponentPaletteComponent,
     CanvasToolbarComponent,
     CanvasViewportComponent,
-    InspectorPanelComponent
+    InspectorPanelComponent,
+    LearningPanelComponent
   ],
   template: `
     <div class="designer-layout">
@@ -36,8 +38,12 @@ import { CanvasHistoryService } from './services/canvas-history.service';
           <app-canvas-viewport />
         </main>
 
-        <!-- 3. Right: Contextual Properties Inspector -->
-        <app-inspector-panel />
+        <!-- 3. Right: Contextual Properties Inspector OR Learning Panel -->
+        @if (canvasState.learningMode()) {
+          <app-learning-panel />
+        } @else {
+          <app-inspector-panel />
+        }
       </div>
     </div>
   `,
@@ -70,7 +76,7 @@ import { CanvasHistoryService } from './services/canvas-history.service';
 })
 export class CanvasDesignerComponent {
   constructor(
-    private canvasState: CanvasStateService,
+    public canvasState: CanvasStateService,
     private historyService: CanvasHistoryService
   ) {}
 

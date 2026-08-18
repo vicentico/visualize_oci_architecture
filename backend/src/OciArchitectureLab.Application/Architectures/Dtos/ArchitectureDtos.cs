@@ -56,3 +56,11 @@ public record UpdateArchitectureRequest(
     string Name,
     string Description
 );
+
+public record SaveArchitectureStateRequest(
+    string Name,
+    string Description,
+    string Region,
+    IReadOnlyList<OciResourceDto> Resources,
+    IReadOnlyList<ResourceConnectionDto> Connections
+);

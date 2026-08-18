@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace OciArchitectureLab.Domain.Entities;
 
 /// <summary>
@@ -7,24 +9,55 @@ namespace OciArchitectureLab.Domain.Entities;
 /// </summary>
 public class Architecture
 {
+    [JsonInclude]
     public string Id { get; private set; } = Guid.NewGuid().ToString();
+    
+    [JsonInclude]
     public string Name { get; private set; } = string.Empty;
+    
+    [JsonInclude]
     public string Description { get; private set; } = string.Empty;
+    
+    [JsonInclude]
     public string Provider { get; private set; } = "OCI";
+    
+    [JsonInclude]
     public string Region { get; private set; } = string.Empty;
+    
+    [JsonIgnore]
     public IReadOnlyList<OciResource> Resources => _resources.AsReadOnly();
+    
+    [JsonIgnore]
     public IReadOnlyList<ResourceConnection> Connections => _connections.AsReadOnly();
+    
+    [JsonIgnore]
     public IReadOnlyList<SecurityRule> SecurityRules => _securityRules.AsReadOnly();
+    
+    [JsonIgnore]
     public IReadOnlyList<TrafficFlow> TrafficFlows => _trafficFlows.AsReadOnly();
+    
+    [JsonInclude]
     public ArchitectureMetadata Metadata { get; private set; } = new();
 
-    private readonly List<OciResource> _resources = [];
-    private readonly List<ResourceConnection> _connections = [];
-    private readonly List<SecurityRule> _securityRules = [];
-    private readonly List<TrafficFlow> _trafficFlows = [];
+    [JsonInclude]
+    [JsonPropertyName("resources")]
+    private List<OciResource> _resources = [];
+    
+    [JsonInclude]
+    [JsonPropertyName("connections")]
+    private List<ResourceConnection> _connections = [];
+    
+    [JsonInclude]
+    [JsonPropertyName("securityRules")]
+    private List<SecurityRule> _securityRules = [];
+    
+    [JsonInclude]
+    [JsonPropertyName("trafficFlows")]
+    private List<TrafficFlow> _trafficFlows = [];
 
-    // Required for MongoDB deserialization
-    private Architecture() { }
+    // Required for MongoDB/JSON deserialization
+    [JsonConstructor]
+    public Architecture() { }
 
     public static Architecture Create(string name, string region, string description = "")
     {
@@ -81,6 +114,17 @@ public class Architecture
     {
         ArgumentNullException.ThrowIfNull(connection);
         _connections.Add(connection);
+        TouchUpdatedAt();
+    }
+
+    public void SetState(IEnumerable<OciResource> resources, IEnumerable<ResourceConnection> connections)
+    {
+        _resources.Clear();
+        _resources.AddRange(resources);
+        
+        _connections.Clear();
+        _connections.AddRange(connections);
+        
         TouchUpdatedAt();
     }
 

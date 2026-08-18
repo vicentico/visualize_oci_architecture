@@ -7,6 +7,12 @@ import {
 } from '../../../core/models/canvas.models';
 import { OCI_CATALOG, OciCatalogItem } from '../../../core/models/catalog.models';
 import { CanvasHistoryService } from './canvas-history.service';
+import { ArchitectureMapperService } from '../../../core/services/architecture-mapper.service';
+import { ArchitectureService } from '../../../core/services/architecture.service';
+import { ValidationService } from '../../../core/services/validation.service';
+import { ValidationResult } from '../../../core/models/validation.models';
+import { SimulationService } from '../../../core/services/simulation.service';
+import { TrafficSimulationResult } from '../../../core/models/simulation.models';
 
 const LOCAL_STORAGE_KEY = 'oci_lab_current_architecture';
 
@@ -40,6 +46,18 @@ export class CanvasStateService {
   } | null>(null);
   readonly linkingMousePos = signal<{ x: number; y: number } | null>(null);
 
+  // Validation State
+  readonly validationResult = signal<ValidationResult | null>(null);
+  private validationTimeout: any;
+
+  // Mode Toggles
+  readonly simulationMode = signal<boolean>(false);
+  readonly learningMode = signal<boolean>(false);
+
+  // Interactive Simulation State
+  readonly simulationSourceNodeId = signal<string | null>(null);
+  readonly trafficSimulationResult = signal<TrafficSimulationResult | null>(null);
+
   // Computed Properties
   readonly selectedNode = computed(() => {
     const id = this.selectedNodeId();
@@ -53,11 +71,17 @@ export class CanvasStateService {
 
   readonly isConnecting = computed(() => this.linkingSource() !== null);
 
-  constructor(private historyService: CanvasHistoryService) {
-    // Attempt to load from local storage or load default starter architecture
+  constructor(
+    private historyService: CanvasHistoryService,
+    private architectureMapper: ArchitectureMapperService,
+    private architectureService: ArchitectureService,
+    private validationService: ValidationService,
+    private simulationService: SimulationService
+  ) {
+    // Attempt to load from local storage
     const restored = this.loadFromLocalStorage();
     if (!restored) {
-      this.loadStarterArchitecture();
+      this.clearCanvas();
     }
   }
 
@@ -74,6 +98,26 @@ export class CanvasStateService {
       architectureDescription: this.architectureDescription()
     });
     this.saveToLocalStorage();
+    this.triggerValidation();
+  }
+
+  private triggerValidation() {
+    if (this.validationTimeout) {
+      clearTimeout(this.validationTimeout);
+    }
+    this.validationTimeout = setTimeout(() => {
+      const domainModel = this.architectureMapper.toDomainModel(
+        this.architectureId(),
+        this.architectureName(),
+        this.architectureDescription(),
+        this.architectureRegion(),
+        this.nodes(),
+        this.connections()
+      );
+      this.validationService.validate(domainModel).subscribe(result => {
+        this.validationResult.set(result);
+      });
+    }, 1000);
   }
 
   undo() {
@@ -92,6 +136,7 @@ export class CanvasStateService {
       this.architectureDescription.set(previous.architectureDescription);
       this.clearSelection();
       this.saveToLocalStorage();
+      this.triggerValidation();
     }
   }
 
@@ -111,6 +156,7 @@ export class CanvasStateService {
       this.architectureDescription.set(next.architectureDescription);
       this.clearSelection();
       this.saveToLocalStorage();
+      this.triggerValidation();
     }
   }
 
@@ -307,12 +353,61 @@ export class CanvasStateService {
   }
 
   // ─────────────────────────────────────────────────────────────
-  // Selection
+  // Selection & Interactions
   // ─────────────────────────────────────────────────────────────
 
+  toggleSimulationMode() {
+    this.simulationMode.set(!this.simulationMode());
+    if (this.simulationMode()) {
+      this.learningMode.set(false);
+    }
+    this.simulationSourceNodeId.set(null);
+    this.trafficSimulationResult.set(null);
+    this.clearSelection();
+  }
+
+  toggleLearningMode() {
+    this.learningMode.set(!this.learningMode());
+    if (this.learningMode()) {
+      this.simulationMode.set(false);
+      this.simulationSourceNodeId.set(null);
+      this.trafficSimulationResult.set(null);
+    }
+    this.clearSelection();
+  }
+
   selectNode(id: string | null) {
+    if (id && this.simulationMode()) {
+      if (!this.simulationSourceNodeId()) {
+        this.simulationSourceNodeId.set(id);
+      } else {
+        this.runSimulation(this.simulationSourceNodeId()!, id);
+      }
+      return;
+    }
     this.selectedNodeId.set(id);
     this.selectedConnectionId.set(null);
+  }
+
+  private runSimulation(sourceId: string, targetId: string) {
+    const domainModel = this.architectureMapper.toDomainModel(
+      this.architectureId(),
+      this.architectureName(),
+      this.architectureDescription(),
+      this.architectureRegion(),
+      this.nodes(),
+      this.connections()
+    );
+
+    this.simulationService.simulatePath({
+      sourceNodeId: sourceId,
+      targetNodeId: targetId,
+      architectureState: domainModel
+    }).subscribe(result => {
+      this.trafficSimulationResult.set(result);
+      // Keep source selected to allow another target, or reset to null to start over
+      this.simulationSourceNodeId.set(null);
+    });
   }
 
   selectConnection(id: string | null) {
@@ -438,199 +533,29 @@ export class CanvasStateService {
   }
 
   // ─────────────────────────────────────────────────────────────
-  // Starter Architecture Loader (MVP Baseline)
+  // Template Loader
   // ─────────────────────────────────────────────────────────────
 
-  loadStarterArchitecture() {
-    const internet: CanvasNode = {
-      id: 'res-internet',
-      type: 'Internet',
-      name: 'Internet',
-      category: 'External',
-      x: 370,
-      y: 40,
-      width: 160,
-      height: 70,
-      icon: 'public',
-      color: '#0284c7',
-      properties: { ipRange: '0.0.0.0/0' },
-      ports: [
-        { id: 'p-int-out', type: 'out', position: 'bottom', xRatio: 0.5, yRatio: 1 },
-        { id: 'p-int-in', type: 'in', position: 'top', xRatio: 0.5, yRatio: 0 },
-        { id: 'p-int-l', type: 'in', position: 'left', xRatio: 0, yRatio: 0.5 },
-        { id: 'p-int-r', type: 'out', position: 'right', xRatio: 1, yRatio: 0.5 }
-      ]
-    };
-
-    const igw: CanvasNode = {
-      id: 'res-igw',
-      type: 'InternetGateway',
-      name: 'Internet Gateway',
-      category: 'Networking',
-      x: 370,
-      y: 160,
-      width: 160,
-      height: 70,
-      icon: 'router',
-      color: '#0d9488',
-      properties: { isEnabled: true },
-      ports: [
-        { id: 'p-igw-in', type: 'in', position: 'top', xRatio: 0.5, yRatio: 0 },
-        { id: 'p-igw-out', type: 'out', position: 'bottom', xRatio: 0.5, yRatio: 1 },
-        { id: 'p-igw-l', type: 'in', position: 'left', xRatio: 0, yRatio: 0.5 },
-        { id: 'p-igw-r', type: 'out', position: 'right', xRatio: 1, yRatio: 0.5 }
-      ]
-    };
-
-    const lb: CanvasNode = {
-      id: 'res-lb',
-      type: 'LoadBalancer',
-      name: 'Public Load Balancer',
-      category: 'Application',
-      x: 370,
-      y: 280,
-      width: 170,
-      height: 75,
-      icon: 'call_split',
-      color: '#b45309',
-      properties: { shape: 'flexible', minBandwidthMbps: 10, maxBandwidthMbps: 100, isPrivate: false },
-      ports: [
-        { id: 'p-lb-in', type: 'in', position: 'top', xRatio: 0.5, yRatio: 0 },
-        { id: 'p-lb-out', type: 'out', position: 'bottom', xRatio: 0.5, yRatio: 1 },
-        { id: 'p-lb-l', type: 'in', position: 'left', xRatio: 0, yRatio: 0.5 },
-        { id: 'p-lb-r', type: 'out', position: 'right', xRatio: 1, yRatio: 0.5 }
-      ]
-    };
-
-    const api1: CanvasNode = {
-      id: 'res-api-1',
-      type: 'ComputeInstance',
-      name: 'API Instance #1 (AD-1)',
-      category: 'Compute',
-      x: 230,
-      y: 420,
-      width: 180,
-      height: 75,
-      icon: 'memory',
-      color: '#d97706',
-      properties: { shape: 'VM.Standard.E5.Flex', ocpus: 2, memoryInGBs: 16, os: 'Oracle Linux 9' },
-      ports: [
-        { id: 'p-api1-in', type: 'in', position: 'top', xRatio: 0.5, yRatio: 0 },
-        { id: 'p-api1-out', type: 'out', position: 'bottom', xRatio: 0.5, yRatio: 1 },
-        { id: 'p-api1-l', type: 'in', position: 'left', xRatio: 0, yRatio: 0.5 },
-        { id: 'p-api1-r', type: 'out', position: 'right', xRatio: 1, yRatio: 0.5 }
-      ]
-    };
-
-    const api2: CanvasNode = {
-      id: 'res-api-2',
-      type: 'ComputeInstance',
-      name: 'API Instance #2 (AD-2)',
-      category: 'Compute',
-      x: 510,
-      y: 420,
-      width: 180,
-      height: 75,
-      icon: 'memory',
-      color: '#d97706',
-      properties: { shape: 'VM.Standard.E5.Flex', ocpus: 2, memoryInGBs: 16, os: 'Oracle Linux 9' },
-      ports: [
-        { id: 'p-api2-in', type: 'in', position: 'top', xRatio: 0.5, yRatio: 0 },
-        { id: 'p-api2-out', type: 'out', position: 'bottom', xRatio: 0.5, yRatio: 1 },
-        { id: 'p-api2-l', type: 'in', position: 'left', xRatio: 0, yRatio: 0.5 },
-        { id: 'p-api2-r', type: 'out', position: 'right', xRatio: 1, yRatio: 0.5 }
-      ]
-    };
-
-    const db: CanvasNode = {
-      id: 'res-db',
-      type: 'Database',
-      name: 'Autonomous Database (ATP)',
-      category: 'Database',
-      x: 370,
-      y: 560,
-      width: 190,
-      height: 80,
-      icon: 'dns',
-      color: '#c5221f',
-      properties: { workload: 'Transaction Processing', cpuCount: 2, storageInTB: 1, isPrivate: true },
-      ports: [
-        { id: 'p-db-in', type: 'in', position: 'top', xRatio: 0.5, yRatio: 0 },
-        { id: 'p-db-out', type: 'out', position: 'bottom', xRatio: 0.5, yRatio: 1 },
-        { id: 'p-db-l', type: 'in', position: 'left', xRatio: 0, yRatio: 0.5 },
-        { id: 'p-db-r', type: 'out', position: 'right', xRatio: 1, yRatio: 0.5 }
-      ]
-    };
-
-    const defaultNodes = [internet, igw, lb, api1, api2, db];
-
-    const defaultConnections: CanvasConnection[] = [
-      {
-        id: 'conn-1',
-        sourceNodeId: 'res-internet',
-        sourcePortId: 'p-int-out',
-        targetNodeId: 'res-igw',
-        targetPortId: 'p-igw-in',
-        protocol: 'HTTPS',
-        port: 443,
-        label: 'HTTPS:443'
-      },
-      {
-        id: 'conn-2',
-        sourceNodeId: 'res-igw',
-        sourcePortId: 'p-igw-out',
-        targetNodeId: 'res-lb',
-        targetPortId: 'p-lb-in',
-        protocol: 'HTTPS',
-        port: 443,
-        label: 'HTTPS:443'
-      },
-      {
-        id: 'conn-3',
-        sourceNodeId: 'res-lb',
-        sourcePortId: 'p-lb-out',
-        targetNodeId: 'res-api-1',
-        targetPortId: 'p-api1-in',
-        protocol: 'HTTP',
-        port: 8080,
-        label: 'HTTP:8080'
-      },
-      {
-        id: 'conn-4',
-        sourceNodeId: 'res-lb',
-        sourcePortId: 'p-lb-out',
-        targetNodeId: 'res-api-2',
-        targetPortId: 'p-api2-in',
-        protocol: 'HTTP',
-        port: 8080,
-        label: 'HTTP:8080'
-      },
-      {
-        id: 'conn-5',
-        sourceNodeId: 'res-api-1',
-        sourcePortId: 'p-api1-out',
-        targetNodeId: 'res-db',
-        targetPortId: 'p-db-in',
-        protocol: 'SQL*Net',
-        port: 1521,
-        label: 'SQL:1521'
-      },
-      {
-        id: 'conn-6',
-        sourceNodeId: 'res-api-2',
-        sourcePortId: 'p-api2-out',
-        targetNodeId: 'res-db',
-        targetPortId: 'p-db-in',
-        protocol: 'SQL*Net',
-        port: 1521,
-        label: 'SQL:1521'
-      }
-    ];
-
-    this.nodes.set(defaultNodes);
-    this.connections.set(defaultConnections);
-    this.clearSelection();
+  loadTemplate(templateData: any) {
+    this.clearCanvas();
+    this.architectureName.set(templateData.architectureName);
+    this.architectureRegion.set(templateData.architectureRegion);
+    
+    if (templateData.nodes) {
+      this.nodes.set(templateData.nodes);
+    }
+    
+    if (templateData.edges) {
+      this.connections.set(templateData.edges);
+    }
+    
     this.recordSnapshot();
+    
+    // Auto layout the newly loaded template
+    setTimeout(() => {
+      this.autoLayout();
+      this.fitToScreen();
+    }, 50);
   }
 
   clearCanvas() {
@@ -641,38 +566,99 @@ export class CanvasStateService {
   }
 
   // ─────────────────────────────────────────────────────────────
-  // Persistence & Export/Import
+  // Persistence & Export/Import (Architecture Domain Model)
   // ─────────────────────────────────────────────────────────────
 
   saveToLocalStorage(): void {
     try {
-      const data = {
-        id: this.architectureId(),
-        name: this.architectureName(),
-        region: this.architectureRegion(),
-        description: this.architectureDescription(),
-        nodes: this.nodes(),
-        connections: this.connections(),
-        viewport: this.viewport()
+      const architecture = this.architectureMapper.toDomainModel(
+        this.architectureId(),
+        this.architectureName(),
+        this.architectureDescription(),
+        this.architectureRegion(),
+        this.nodes(),
+        this.connections()
+      );
+      
+      const payload = {
+        architecture,
+        viewport: this.viewport() // Save UI state separately from domain model
       };
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(payload));
     } catch (e) {
       console.warn('Unable to persist to localStorage', e);
     }
+  }
+
+  saveToCloud(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const isLocal = this.architectureId().startsWith('arch-local');
+      
+      const domainModel = this.architectureMapper.toDomainModel(
+        this.architectureId(),
+        this.architectureName(),
+        this.architectureDescription(),
+        this.architectureRegion(),
+        this.nodes(),
+        this.connections()
+      );
+
+      if (isLocal) {
+        // Create new
+        this.architectureService.create({
+          name: this.architectureName(),
+          region: this.architectureRegion(),
+          description: this.architectureDescription()
+        }).subscribe({
+          next: (created) => {
+            this.architectureId.set(created.id);
+            // Now save the full state using the new ID
+            this.architectureService.saveState(created.id, domainModel).subscribe({
+              next: () => resolve(),
+              error: (err) => reject(err)
+            });
+          },
+          error: (err) => reject(err)
+        });
+      } else {
+        // Update existing
+        this.architectureService.saveState(this.architectureId(), domainModel).subscribe({
+          next: () => resolve(),
+          error: (err) => reject(err)
+        });
+      }
+    });
   }
 
   loadFromLocalStorage(): boolean {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (!saved) return false;
+      
       const data = JSON.parse(saved);
-      if (data.nodes && Array.isArray(data.nodes) && data.nodes.length > 0) {
+      // Support backward compatibility if previous save was the raw canvas state
+      if (data.nodes && Array.isArray(data.nodes) && !data.architecture) {
         this.architectureId.set(data.id || 'arch-local-001');
         this.architectureName.set(data.name || 'OCI Architecture');
         this.architectureRegion.set(data.region || 'sa-santiago-1');
         this.architectureDescription.set(data.description || '');
         this.nodes.set(data.nodes);
         this.connections.set(data.connections || []);
+        if (data.viewport) this.viewport.set(data.viewport);
+        return true;
+      }
+
+      if (data.architecture) {
+        const arch = data.architecture;
+        this.architectureId.set(arch.id);
+        this.architectureName.set(arch.name);
+        this.architectureRegion.set(arch.region);
+        this.architectureDescription.set(arch.description);
+        
+        const canvasState = this.architectureMapper.toCanvasState(arch);
+        this.nodes.set(canvasState.nodes);
+        this.connections.set(canvasState.connections);
+        
         if (data.viewport) this.viewport.set(data.viewport);
         return true;
       }
@@ -683,28 +669,43 @@ export class CanvasStateService {
   }
 
   exportToJson(): string {
-    const data = {
-      id: this.architectureId(),
-      name: this.architectureName(),
-      region: this.architectureRegion(),
-      description: this.architectureDescription(),
-      provider: 'OCI',
-      exportedAt: new Date().toISOString(),
-      nodes: this.nodes(),
-      connections: this.connections()
-    };
-    return JSON.stringify(data, null, 2);
+    const architecture = this.architectureMapper.toDomainModel(
+      this.architectureId(),
+      this.architectureName(),
+      this.architectureDescription(),
+      this.architectureRegion(),
+      this.nodes(),
+      this.connections()
+    );
+    return JSON.stringify(architecture, null, 2);
   }
 
   importFromJson(jsonString: string): boolean {
     try {
       const parsed = JSON.parse(jsonString);
-      if (parsed.nodes && Array.isArray(parsed.nodes)) {
+      
+      // Support backward compatibility
+      if (parsed.nodes && Array.isArray(parsed.nodes) && !parsed.resources) {
         this.architectureName.set(parsed.name || 'Imported Architecture');
         this.architectureRegion.set(parsed.region || 'sa-santiago-1');
         this.architectureDescription.set(parsed.description || '');
         this.nodes.set(parsed.nodes);
         this.connections.set(parsed.connections || []);
+        this.clearSelection();
+        this.fitToScreen();
+        this.recordSnapshot();
+        return true;
+      }
+
+      if (parsed.resources && Array.isArray(parsed.resources)) {
+        this.architectureId.set(parsed.id || `arch-${Date.now()}`);
+        this.architectureName.set(parsed.name || 'Imported Architecture');
+        this.architectureRegion.set(parsed.region || 'sa-santiago-1');
+        this.architectureDescription.set(parsed.description || '');
+
+        const canvasState = this.architectureMapper.toCanvasState(parsed);
+        this.nodes.set(canvasState.nodes);
+        this.connections.set(canvasState.connections);
         this.clearSelection();
         this.fitToScreen();
         this.recordSnapshot();

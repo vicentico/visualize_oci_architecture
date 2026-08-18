@@ -282,6 +282,7 @@ import { CanvasStateService } from '../../canvas/services/canvas-state.service';
 export class ComponentPaletteComponent {
   searchQuery = signal('');
   readonly allCategories: OciCategory[] = [
+    'Core',
     'External',
     'Networking',
     'Compute',

@@ -36,13 +36,18 @@ export class CanvasHistoryService {
 
   undo(current: CanvasSnapshot): CanvasSnapshot | null {
     const pastStack = this.past();
-    if (pastStack.length === 0) return null;
+    if (pastStack.length <= 1) {
+      // If there's only 1 state (the initial one), we can't undo further
+      // Actually if pastStack is empty or has 1, we return null or the first one.
+      return null;
+    }
 
-    const previous = pastStack[pastStack.length - 1];
+    const currentPast = pastStack[pastStack.length - 1]; // This is essentially 'current'
+    const previous = pastStack[pastStack.length - 2];
     const newPast = pastStack.slice(0, -1);
 
     this.past.set(newPast);
-    this.future.update(stack => [JSON.parse(JSON.stringify(current)), ...stack]);
+    this.future.update(stack => [JSON.parse(JSON.stringify(currentPast)), ...stack]);
 
     return JSON.parse(JSON.stringify(previous));
   }
@@ -55,7 +60,7 @@ export class CanvasHistoryService {
     const newFuture = futureStack.slice(1);
 
     this.future.set(newFuture);
-    this.past.update(stack => [...stack, JSON.parse(JSON.stringify(current))]);
+    this.past.update(stack => [...stack, JSON.parse(JSON.stringify(next))]);
 
     return JSON.parse(JSON.stringify(next));
   }

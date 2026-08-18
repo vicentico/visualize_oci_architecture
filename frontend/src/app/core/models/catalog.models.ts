@@ -21,6 +21,44 @@ export interface OciCatalogItem {
 }
 
 export const OCI_CATALOG: OciCatalogItem[] = [
+  // Core
+  {
+    type: 'Region',
+    name: 'OCI Region',
+    category: 'Core',
+    icon: 'public',
+    color: '#0f172a',
+    description: 'A localized geographic area that contains one or more data centers.',
+    educationalWhy: 'The top-level boundary for cloud resources. Choosing the right region minimizes latency and satisfies data residency.',
+    defaultProperties: { regionId: 'us-ashburn-1' },
+    defaultWidth: 400,
+    defaultHeight: 300
+  },
+  {
+    type: 'AvailabilityDomain',
+    name: 'Availability Domain',
+    category: 'Core',
+    icon: 'domain',
+    color: '#334155',
+    description: 'One or more isolated, fault-tolerant data centers within a region.',
+    educationalWhy: 'Distributing resources across ADs ensures high availability if a single data center fails.',
+    defaultProperties: { adNumber: 1 },
+    defaultWidth: 350,
+    defaultHeight: 250
+  },
+  {
+    type: 'FaultDomain',
+    name: 'Fault Domain',
+    category: 'Core',
+    icon: 'grid_view',
+    color: '#475569',
+    description: 'A grouping of hardware and infrastructure within an Availability Domain.',
+    educationalWhy: 'Protects against unexpected hardware failures and planned hardware maintenance within a single AD.',
+    defaultProperties: { fdNumber: 1 },
+    defaultWidth: 300,
+    defaultHeight: 200
+  },
+
   // External
   {
     type: 'Internet',
@@ -118,13 +156,33 @@ export const OCI_CATALOG: OciCatalogItem[] = [
   },
   {
     type: 'SecurityList',
-    name: 'Security List / NSG',
+    name: 'Security List',
+    category: 'Networking',
+    icon: 'list_alt',
+    color: '#1e293b',
+    description: 'Virtual firewall rules controlling ingress and egress traffic at the subnet level.',
+    educationalWhy: 'Applies baseline security rules to all VNICs within a subnet.',
+    defaultProperties: { defaultAction: 'DenyAll' }
+  },
+  {
+    type: 'NetworkSecurityGroup',
+    name: 'Network Security Group (NSG)',
     category: 'Networking',
     icon: 'security',
-    color: '#1e293b',
-    description: 'Virtual firewall rules controlling ingress and egress traffic at the subnet or VNIC level.',
-    educationalWhy: 'Enforces the principle of least privilege by blocking unauthorized ports and protocols.',
+    color: '#0f172a',
+    description: 'Virtual firewall rules controlling ingress and egress traffic at the VNIC level.',
+    educationalWhy: 'Provides granular security control for individual instances or databases, regardless of their subnet.',
     defaultProperties: { defaultAction: 'DenyAll' }
+  },
+  {
+    type: 'RouteTable',
+    name: 'Route Table',
+    category: 'Networking',
+    icon: 'alt_route',
+    color: '#115e59',
+    description: 'Contains rules to route traffic from subnets to destinations outside the VCN.',
+    educationalWhy: 'Determines how traffic flows out of a subnet to the internet, on-premises networks, or other VCNs.',
+    defaultProperties: { routeRules: [] }
   },
 
   // Compute

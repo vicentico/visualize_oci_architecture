@@ -42,6 +42,23 @@ public class ArchitectureService(IArchitectureRepository repository)
         return MapToDetail(updated);
     }
 
+    public async Task<ArchitectureDetailDto?> SaveStateAsync(string id, SaveArchitectureStateRequest request, CancellationToken ct = default)
+    {
+        var existing = await repository.GetByIdAsync(id, ct);
+        if (existing is null) return null;
+
+        existing.UpdateName(request.Name);
+        existing.UpdateDescription(request.Description);
+        
+        var resources = request.Resources.Select(MapToDomainResource);
+        var connections = request.Connections.Select(MapToDomainConnection);
+        
+        existing.SetState(resources, connections);
+
+        var updated = await repository.UpdateAsync(existing, ct);
+        return MapToDetail(updated);
+    }
+
     public async Task<bool> DeleteAsync(string id, CancellationToken ct = default)
         => await repository.DeleteAsync(id, ct);
 
@@ -69,4 +86,23 @@ public class ArchitectureService(IArchitectureRepository repository)
         c.Id, c.SourceResourceId, c.TargetResourceId,
         c.Protocol, c.Port, c.Direction.ToString()
     );
+
+    private static OciResource MapToDomainResource(OciResourceDto dto) => new OciResource
+    {
+        Id = dto.Id,
+        Type = dto.Type,
+        Name = dto.Name,
+        Position = new CanvasPosition(dto.Position.X, dto.Position.Y, dto.Position.Width, dto.Position.Height),
+        Properties = dto.Properties
+    };
+
+    private static ResourceConnection MapToDomainConnection(ResourceConnectionDto dto) => new ResourceConnection
+    {
+        Id = dto.Id,
+        SourceResourceId = dto.SourceResourceId,
+        TargetResourceId = dto.TargetResourceId,
+        Protocol = dto.Protocol,
+        Port = dto.Port,
+        Direction = Enum.TryParse<ConnectionDirection>(dto.Direction, out var dir) ? dir : ConnectionDirection.Unidirectional
+    };
 }

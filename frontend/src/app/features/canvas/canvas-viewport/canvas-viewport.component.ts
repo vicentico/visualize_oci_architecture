@@ -94,6 +94,7 @@ import { CanvasNode, CanvasConnection, CanvasPort } from '../../../core/models/c
               <g
                 class="connection-group"
                 [class.selected]="selectedConnectionId() === conn.id"
+                [class.simulated]="isConnectionSimulated(conn.id)"
                 (mousedown)="onConnectionClick($event, conn)"
               >
                 <!-- Invisible wider hit-testing path for easy clicking -->
@@ -144,6 +145,7 @@ import { CanvasNode, CanvasConnection, CanvasPort } from '../../../core/models/c
               <g
                 class="node-group"
                 [class.selected]="selectedNodeId() === node.id"
+                [class.simulation-source]="canvasState.simulationSourceNodeId() === node.id"
                 [attr.transform]="'translate(' + node.x + ',' + node.y + ')'"
                 (mousedown)="onNodeMouseDown($event, node)"
               >
@@ -258,7 +260,25 @@ import { CanvasNode, CanvasConnection, CanvasPort } from '../../../core/models/c
 
     .connection-group.selected .connection-path {
       stroke: #c5221f;
-      stroke-width: 3;
+      stroke-width: 2.5;
+    }
+
+    .connection-group.simulated .connection-path {
+      stroke: #10b981;
+      stroke-width: 3.5;
+      animation: dash 1s linear infinite;
+      stroke-dasharray: 10, 5;
+    }
+
+    @keyframes dash {
+      to {
+        stroke-dashoffset: -15;
+      }
+    }
+
+    .connection-group.simulated .label-badge-bg {
+      stroke: #10b981;
+      stroke-width: 2;
     }
 
     .label-badge-bg {
@@ -442,6 +462,12 @@ export class CanvasViewportComponent {
 
     const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9;
     this.canvasState.zoom(zoomFactor, clientX, clientY);
+  }
+
+  isConnectionSimulated(connId: string): boolean {
+    const simRes = this.canvasState.trafficSimulationResult();
+    if (!simRes || !simRes.isPathFound) return false;
+    return simRes.path.some(hop => hop.connectionId === connId);
   }
 
   // ─────────────────────────────────────────────────────────────

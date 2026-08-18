@@ -3,6 +3,10 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using OciArchitectureLab.Application.Architectures.Services;
 using OciArchitectureLab.Application.Architectures.Validators;
+using OciArchitectureLab.Application.Validation.Services;
+using OciArchitectureLab.Application.Simulation.Services;
+using OciArchitectureLab.Domain.Validation;
+using OciArchitectureLab.Domain.Validation.Rules;
 using OciArchitectureLab.Infrastructure;
 using Serilog;
 
@@ -45,6 +49,16 @@ try
 
     // ── Application Services ─────────────────
     builder.Services.AddScoped<ArchitectureService>();
+    builder.Services.AddScoped<ValidationService>();
+    builder.Services.AddScoped<SimulationService>();
+    builder.Services.AddSingleton<OciArchitectureLab.Application.Learning.Services.ILearningContentProvider, OciArchitectureLab.Application.Learning.Services.StaticLearningContentProvider>();
+    builder.Services.AddScoped<OciArchitectureLab.Application.Export.Services.IMarkdownGeneratorService, OciArchitectureLab.Application.Export.Services.MarkdownGeneratorService>();
+    builder.Services.AddScoped<OciArchitectureLab.Application.Export.Services.ITerraformGeneratorService, OciArchitectureLab.Application.Export.Services.TerraformGeneratorService>();
+
+    // ── Domain Validation Rules ──────────────
+    builder.Services.AddScoped<IArchitectureRule, DatabaseIsPrivateRule>();
+    builder.Services.AddScoped<IArchitectureRule, LoadBalancerHasBackendRule>();
+    builder.Services.AddScoped<IArchitectureRule, NoInternetGatewayRule>();
 
     // ── FluentValidation ─────────────────────
     builder.Services.AddScoped<IValidator<OciArchitectureLab.Application.Architectures.Dtos.CreateArchitectureRequest>,

@@ -40,4 +40,8 @@ export class ArchitectureService {
   delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${id}`);
   }
+
+  saveState(id: string, request: any): Observable<Architecture> {
+    return this.http.put<Architecture>(`${this.apiUrl}/${id}/state`, request);
+  }
 }

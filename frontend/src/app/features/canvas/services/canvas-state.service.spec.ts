@@ -1,4 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { CanvasStateService } from './canvas-state.service';
 import { CanvasHistoryService } from './canvas-history.service';
 
@@ -9,16 +11,20 @@ describe('CanvasStateService', () => {
   beforeEach(() => {
     localStorage.clear();
     TestBed.configureTestingModule({
-      providers: [CanvasStateService, CanvasHistoryService]
+      providers: [
+        CanvasStateService, 
+        CanvasHistoryService,
+        provideHttpClient(),
+        provideHttpClientTesting()
+      ]
     });
     service = TestBed.inject(CanvasStateService);
     history = TestBed.inject(CanvasHistoryService);
   });
 
-  it('should initialize with default starter architecture', () => {
-    expect(service.nodes().length).toBeGreaterThan(0);
-    expect(service.connections().length).toBeGreaterThan(0);
-    expect(service.architectureName()).toBe('OCI Web Application');
+  it('should initialize with empty architecture', () => {
+    expect(service.nodes().length).toBe(0);
+    expect(service.connections().length).toBe(0);
   });
 
   it('should add a new node from catalog correctly', () => {
@@ -32,22 +38,20 @@ describe('CanvasStateService', () => {
   });
 
   it('should remove a node and delete dangling connections (cascade delete)', () => {
-    // Start with known starter architecture
-    service.loadStarterArchitecture();
-    const lbNode = service.nodes().find(n => n.type === 'LoadBalancer');
-    expect(lbNode).toBeDefined();
+    service.clearCanvas();
+    const n1 = service.addNodeFromCatalog('Internet', 100, 100);
+    const n2 = service.addNodeFromCatalog('LoadBalancer', 100, 300);
 
-    const initialConns = service.connections().length;
-    expect(initialConns).toBeGreaterThan(0);
+    if (n1 && n2) {
+      service.startLinking(n1.id, n1.ports[1].id, 100, 150);
+      service.completeLinking(n2.id, n2.ports[0].id);
+      
+      expect(service.connections().length).toBe(1);
 
-    // Remove Load Balancer
-    if (lbNode) {
-      service.removeNode(lbNode.id);
-      // Verify node removed
-      expect(service.nodes().some(n => n.id === lbNode.id)).toBeFalse();
-      // Verify all connections touching this node are removed
-      const remainingConns = service.connections();
-      expect(remainingConns.some(c => c.sourceNodeId === lbNode.id || c.targetNodeId === lbNode.id)).toBeFalse();
+      service.removeNode(n2.id);
+
+      expect(service.nodes().some(n => n.id === n2.id)).toBeFalse();
+      expect(service.connections().length).toBe(0);
     }
   });
 
@@ -108,12 +112,10 @@ describe('CanvasStateService', () => {
   });
 
   it('should export and import JSON correctly', () => {
-    service.loadStarterArchitecture();
+    service.clearCanvas();
+    service.addNodeFromCatalog('Internet', 100, 100);
     const originalCount = service.nodes().length;
     const json = service.exportToJson();
-
-    expect(json).toContain('OCI Web Application');
-    expect(json).toContain('sa-santiago-1');
 
     service.clearCanvas();
     expect(service.nodes().length).toBe(0);

@@ -75,6 +75,16 @@ public class ArchitecturesController(
         return updated is null ? NotFound() : Ok(updated);
     }
 
+    /// <summary>Updates an existing architecture's full state (Canvas sync).</summary>
+    [HttpPut("{id}/state")]
+    [ProducesResponseType(typeof(ArchitectureDetailDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateState(string id, [FromBody] SaveArchitectureStateRequest request, CancellationToken ct)
+    {
+        var updated = await service.SaveStateAsync(id, request, ct);
+        return updated is null ? NotFound() : Ok(updated);
+    }
+
     /// <summary>Deletes an architecture.</summary>
     [HttpDelete("{id}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
